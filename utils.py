@@ -15,9 +15,9 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument("--task", type=str, default="bbq-Age",)
-    parser.add_argument("--data_dir", type=str, default="/data/private/yzy/DATASETS/BIG-bench/bigbench/benchmark_tasks/bbq_lite/resources/",)
-    parser.add_argument("--log_path", type=str, default="logs/log.txt")
-    parser.add_argument("--rule_path", type=str, default="rules/rule-book.json")
+    parser.add_argument("--data_dir", type=str, default="./data/BIG-bench/bigbench/benchmark_tasks/bbq_lite/resources/",)
+    parser.add_argument("--log_path", type=str, default="./logs/log.txt")
+    parser.add_argument("--rule_path", type=str, default="./rules/rule-book.json")
     parser.add_argument("--num_rule_limit", type=int, default=100)
     parser.add_argument("--num_rule_per_sample", type=int, default=3)
     args = parser.parse_args()
@@ -39,7 +39,7 @@ You are only allowed to give me the answer, selecting from \"identical\" and \"n
 def post_message(messages, tokens, logger):
     # 调用接口
     stime = 1
-    
+
     response = openai.Completion.create(
         model="gpt-3.5-turbo-0301",
         messages=messages,
