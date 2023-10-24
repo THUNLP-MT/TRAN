@@ -33,6 +33,15 @@ if 'bbq' in args.task:
     from settings import convert_prompt_bbq as convert_prompt
     from settings import construct_summary_prompt_bbq as construct_summary_prompt
     from utils import reasoning_rules_bbq as reasoning_rules
+elif 'tweet' in args.task:
+    from dataloader import load_data_tweet as load_data
+    from settings import task_descrip_prompt_tweet, summary_prompt_tweet
+    task_descrip_prompt, summary_prompt = task_descrip_prompt_tweet[args.task], summary_prompt_tweet[args.task]
+    from settings import line_data_to_key_tweet as line_data_to_key
+    from settings import check_true_or_false_tweet as check_true_or_false
+    from settings import convert_prompt_tweet as convert_prompt
+    from settings import construct_summary_prompt_tweet as construct_summary_prompt
+    from utils import reasoning_rules_tweet as reasoning_rules
 else:
     print('Not Implemented Yet')
     raise AttributeError
@@ -41,7 +50,7 @@ from settings import formulate_rule_prompt, check_rules_example
 
 if __name__ == '__main__': 
 
-    rule_book = RuleBook(logger)
+    rule_book = RuleBook(args.task, logger)
     rule_book.load_check_rule_example(check_rules_example, convert_prompt, task_descrip_prompt, check_true_or_false)
     rule_book.load_construct_summary_prompt(construct_summary_prompt, summary_prompt)
     data = load_data(args.data_dir, args.task)
@@ -49,7 +58,7 @@ if __name__ == '__main__':
     faults = []
 
     count, tokens = 0, 0
-    for line_data in tqdm(data[:50]):
+    for line_data in tqdm(data[:]):
 
         query_prompt = convert_prompt(line_data, task_prompt=task_descrip_prompt)
 
@@ -63,7 +72,7 @@ if __name__ == '__main__':
         messages, response, tokens = post_message(messages, tokens, logger)
 
         answer = messages[1]['content'].replace('assistant', '').replace(':', '').strip()
-        correct = check_true_or_false(answer, line_data)
+        correct = check_true_or_false(answer, line_data, args.task)
 
         if not correct: faults.append(count)
 
@@ -76,8 +85,7 @@ if __name__ == '__main__':
 
         if not correct:
 
-            ans_index = int(line_data['label']) + 1
-            messages, response, tokens = reasoning_rules(messages, tokens, logger, ans_index)
+            messages, response, tokens = reasoning_rules(messages, tokens, logger, line_data, args.task)
 
             raw_rules = response['choices'][0]['message']['content'].split('\n')
             valid_rules = get_valid_rules(raw_rules)
@@ -87,7 +95,7 @@ if __name__ == '__main__':
             logger.info('***'*10)
             logger.info('Check rules...')
             logger.info('***'*10)
-            success_rules, tokens = check_rules_example(valid_rules, line_data, tokens, logger, convert_prompt, task_descrip_prompt, check_true_or_false)
+            success_rules, tokens = check_rules_example(valid_rules, line_data, tokens, logger, convert_prompt, task_descrip_prompt, check_true_or_false, args.task)
             
             logger.info(str(len(success_rules)) + ' rules correct the answer')
             for rule in success_rules: logger.info('Successful Rule: ' + rule)
@@ -123,7 +131,5 @@ if __name__ == '__main__':
     rule_book.log_rules()
     logger.info('Faults: ' + str(faults))
     logger.info('Err: ' + str(len(faults)) + '/' + str(count))
-    logger.info('Err: ' + str(len(faults)/(count)))
+    logger.info('Acc: ' + str(1 - len(faults)/(count)))
     logger.info('All Tokens: ' + str(tokens))
-    acc = 1 - len(faults)/(count)
-    logger.info('Acc: ' + str(acc))

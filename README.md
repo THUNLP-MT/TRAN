@@ -3,7 +3,7 @@ This repo contains the codes for our work “Failures Pave the Way: Enhancing La
 
 ## Data
 
-For the experiments on Big-Bench, please download the data from [their repo](https://github.com/google/BIG-bench).
+For the experiments on Big-Bench and TweetEval, please download the data from their repos ([Big-Bench](https://github.com/google/BIG-bench) and [TweetEval](https://github.com/cardiffnlp/tweeteval)) and place them into the `data` folder. Here is the example of downloading Big-Bench.
 
 ```
 cd data

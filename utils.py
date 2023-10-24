@@ -13,8 +13,8 @@ from rank_bm25 import BM25Okapi
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--seed", type=int, default=-1)
-    parser.add_argument("--task", type=str, default="bbq-Age",)
+    parser.add_argument("--seed", type=int, default=-1, help='random seed, -1 for the default order')
+    parser.add_argument("--task", type=str, default="bbq-Age", help='task, bbq-Age/.. or tweet-irony/offensive')
     parser.add_argument("--data_dir", type=str, default="./data/BIG-bench/bigbench/benchmark_tasks/bbq_lite/resources/",)
     parser.add_argument("--log_path", type=str, default="./logs/log.txt")
     parser.add_argument("--rule_path", type=str, default="./rules/rule-book.json")
@@ -53,7 +53,9 @@ def post_message(messages, tokens, logger):
 
     return messages, response, tokens
 
-def reasoning_rules_bbq(messages, tokens, logger, ans_index):
+def reasoning_rules_bbq(messages, tokens, logger, line_data, task=None):
+
+    ans_index = int(line_data['label']) + 1
 
     messages.append({'role': 'user', 'content': f'You are wrong. This correct answer is Answer {ans_index}.'})
     messages, _, tokens = post_message(messages, tokens, logger)
@@ -62,6 +64,26 @@ def reasoning_rules_bbq(messages, tokens, logger, ans_index):
     messages, _, tokens = post_message(messages, tokens, logger)
 
     messages.append({'role': 'user', 'content': 'Be more general and concise.'})
+    messages, _, tokens = post_message(messages, tokens, logger)
+    
+    messages.append({'role': 'user', 'content': 'Please rewrite these reasons into rules for making judgments, using the format of "if..., then...". Give it in sections. Each is an independent rule. Directly give the content of the rule. Do not answer anything else:'})
+    messages, response, tokens = post_message(messages, tokens, logger)
+
+    return messages, response, tokens
+
+def reasoning_rules_tweet(messages, tokens, logger, line_data, task=None):
+
+    task = task.repalce('tweet-', '')
+    if line_data['label'] > 0: label = task.repalce('tweet-', '')
+    else: label = 'not ' + task.repalce('tweet-', '')
+
+    messages.append({'role': 'user', 'content': f'You are wrong. This review is \"{label}\"'})
+    messages, _, tokens = post_message(messages, tokens, logger)
+    
+    messages.append({'role': 'user', 'content': f'Please give me the reasons for categorizing this review as \"{label}\". List by points.'})
+    messages, _, tokens = post_message(messages, tokens, logger)
+
+    messages.append({'role': 'user', 'content': 'Be more precise and concise.'})
     messages, _, tokens = post_message(messages, tokens, logger)
     
     messages.append({'role': 'user', 'content': 'Please rewrite these reasons into rules for making judgments, using the format of "if..., then...". Give it in sections. Each is an independent rule. Directly give the content of the rule. Do not answer anything else:'})
@@ -88,7 +110,7 @@ def compare_rules(rule1, rule2, compare_prompt):
 
 class RuleBook():
 
-    def __init__(self, logger):
+    def __init__(self, task, logger):
         self.rules = []
         self.valid_rules = []
         self.rule_id = {}
@@ -101,15 +123,13 @@ class RuleBook():
         self.sample_line_data = {}
         self.sample_rule = {}
         self.rule_sample = {}
+        self.task = task
 
         self.fail_sample_line_data = {}
         self.fail_samples = []
 
         self.logger = logger
     
-    def register_sentence_bert(self):
-        pass
-
     def update_rules(self, sample, line_data, rules, index):
                 
         if sample not in self.samples:
@@ -255,7 +275,7 @@ class RuleBook():
                     if 'identical' in rel:
                         sid = self.rule_sample[sim_rule]
                         line_sample = self.sample_line_data[self.samples[sid]]
-                        success_rules, tokens = self.check_rules_example([new_rule], line_sample, tokens, self.logger, self.convert_prompt, self.task_descrip_prompt, self.check_true_or_false)
+                        success_rules, tokens = self.check_rules_example([new_rule], line_sample, tokens, self.logger, self.convert_prompt, self.task_descrip_prompt, self.check_true_or_false, self.task)
                         if len(success_rules) == 0: replace = False
                     
                     if replace:
@@ -287,7 +307,7 @@ class RuleBook():
     def get_summary_rules(self, similar_samples, line_data):
         
         line_datas = [line_data] + [self.fail_sample_line_data[sample] for sample in similar_samples]
-        prompt = self.construct_summary_prompt(line_datas, self.summary_prompt)
+        prompt = self.construct_summary_prompt(line_datas, self.summary_prompt, self.task)
 
         messages = [{'role': 'user', 'content': prompt}]
         messages, response, tokens = post_message(messages, 0, self.logger)
@@ -324,7 +344,7 @@ class RuleBook():
         for summary_sample in summary_samples:
             line_sample = summary_sample_line_datas[summary_sample]
             self.logger.info('Checking Summary Rules for Fail Sample: ' + summary_sample.replace('\n', '<n>'))
-            success_new_rules, tokens = self.check_rules_example(new_valid_rules, line_sample, tokens, self.logger, self.convert_prompt, self.task_descrip_prompt, self.check_true_or_false)
+            success_new_rules, tokens = self.check_rules_example(new_valid_rules, line_sample, tokens, self.logger, self.convert_prompt, self.task_descrip_prompt, self.check_true_or_false, self.task)
             if len(success_new_rules) > 0:
                 self.logger.info('Get New Effective Summary Rules!')
                 success_sample_rules[summary_sample] = success_new_rules

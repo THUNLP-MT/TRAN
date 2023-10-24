@@ -21,7 +21,7 @@ def formulate_rule_prompt(rules):
 
     return rule_prompt + '\n'
 
-def check_rules_example(rules, line_data, tokens, logger, convert_prompt, task_descrip_prompt, check_true_or_false):
+def check_rules_example(rules, line_data, tokens, logger, convert_prompt, task_descrip_prompt, check_true_or_false, task):
     # Check rules
     success_rules = []
     for rule in rules:
@@ -30,7 +30,7 @@ def check_rules_example(rules, line_data, tokens, logger, convert_prompt, task_d
         messages, response, tokens = post_message(messages, tokens, logger)        
         
         answer = messages[1]['content'].replace('assistant', '').replace(':', '').strip()
-        correct = check_true_or_false(answer, line_data)
+        correct = check_true_or_false(answer, line_data, task)
         if correct:
             logger.info('The Answer is Correct!')
             success_rules.append(rule)
@@ -58,7 +58,7 @@ Do not answer anything else. \
 def line_data_to_key_bbq(line_data):
     return 'Context: \"' + line_data['context'] + '\"\nQuestion: \"' + line_data['question'] + '\"' 
 
-def check_true_or_false_bbq(answer, line_data):
+def check_true_or_false_bbq(answer, line_data, task=None):
     
     pred = answer.lower()
     label = str(int(line_data['label']) + 1)
@@ -76,7 +76,7 @@ def convert_prompt_bbq(line_data, task_prompt):
 
     return prompt
 
-def construct_summary_prompt_bbq(line_datas, summary_prompt):
+def construct_summary_prompt_bbq(line_datas, summary_prompt, task):
     
     prompt = summary_prompt + '\n\nExamples:\n\n'
     for line_data in line_datas:
@@ -87,6 +87,79 @@ def construct_summary_prompt_bbq(line_datas, summary_prompt):
         prompt += str(int(line_data['label']) + 1)
         prompt += '\n\n'
     
+    return prompt + 'Rules: '
+
+task_descrip_prompt_tweet_offensive = "\
+Help me perform a classification task. \
+I will give you a review and you should help me by figuring whether this review is semantically offensive. \
+You are only allowed to give me the answer, selecting from \"offensive\" and \"not offensive\". \
+"
+
+task_descrip_prompt_tweet_irony = "\
+Help me perform a classification task. \
+I will give you a review and you should help me by figuring whether this review is semantically irony. \
+You are only allowed to give me the answer, selecting from \"irony\" and \"not irony\". \
+"
+
+task_descrip_prompt_tweet = {
+    'tweet-offensive': task_descrip_prompt_tweet_offensive,
+    'tweet-irony': task_descrip_prompt_tweet_irony
+}
+
+def line_data_to_key_tweet(line_data):
+    return line_data['sentence']
+
+summary_prompt_tweet_offensive = "\
+I am doing a classification task. \
+Given a review, I need to figure out whether this review is semantically offensive. \
+Here I will give you several examples. \
+Please help me summarize the rules to classify these reviews, using the format of \"if..., then...\". \
+Be precise and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
+Do not answer anything else. \
+"
+
+summary_prompt_tweet_irony = "\
+I am doing a classification task. \
+Given a review, I need to figure out whether this review is semantically irony. \
+Here I will give you several examples. \
+Please help me summarize the rules to classify these reviews, using the format of \"if..., then...\". \
+Be precise and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
+Do not answer anything else. \
+"
+
+summary_prompt_tweet = {
+    'tweet-offensive': summary_prompt_tweet_offensive,
+    'tweet-irony': summary_prompt_tweet_irony
+}
+
+def check_true_or_false_tweet(answer, line_data, task=None):
+    
+    task = task.replace('tweet-', '')
+    pred = answer.lower()
+    if task in pred:
+        if 'not' in pred: label = 0
+        else: label = 1
+    else: label = -1
+
+    if int(label) == int(line_data['label']): return True
+    else: return False
+
+def convert_prompt_tweet(line_data, task_prompt):
+
+    prompt = task_prompt + '\n\nReview: \"' + line_data['sentence'] + '\"\nSentiment: '
+
+    return prompt
+
+def construct_summary_prompt_tweet(line_datas, summary_prompt, task):
+
+    task = task.replace('tweet-', '')
+    cats = [f'Not {task}', task]
+    prompt = summary_prompt + '\n\nExamples:\n\n'
+    for line_data in line_datas:
+        prompt += 'Review: \"' + line_data['sentence'] + '\"\nSentiment: '
+        prompt += cats[line_data['label']]
+        prompt += '\n\n'
+
     return prompt + 'Rules: '
 
 summary_prompt_bbh_word_sorting = "\
@@ -113,51 +186,6 @@ Given a list of objects, I need to count the number. \
 Here I will give you several examples. \
 Please help me summarize the rules to count the objects, using the format of \"if..., then...\". \
 Be general and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
-Do not answer anything else. \
-"
-
-task_descrip_prompt_tweet_offensive = "\
-Help me perform a classification task. \
-I will give you a review and you should help me by figuring whether this review is semantically offensive. \
-You are only allowed to give me the answer, selecting from \"offensive\" and \"not offensive\". \
-"
-
-task_descrip_prompt_tweet_irony = "\
-Help me perform a classification task. \
-I will give you a review and you should help me by figuring whether this review is semantically irony. \
-You are only allowed to give me the answer, selecting from \"irony\" and \"not irony\". \
-"
-
-task_descrip_prompt_tweet_hateful = "\
-Help me perform a classification task. \
-I will give you a review and you should help me by figuring whether this review is semantically hateful. \
-You are only allowed to give me the answer, selecting from \"hateful\" and \"not hateful\". \
-"
-
-summary_prompt_tweet_offensive = "\
-I am doing a classification task. \
-Given a review, I need to figure out whether this review is semantically offensive. \
-Here I will give you several examples. \
-Please help me summarize the rules to classify these reviews, using the format of \"if..., then...\". \
-Be precise and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
-Do not answer anything else. \
-"
-
-summary_prompt_tweet_irony = "\
-I am doing a classification task. \
-Given a review, I need to figure out whether this review is semantically irony. \
-Here I will give you several examples. \
-Please help me summarize the rules to classify these reviews, using the format of \"if..., then...\". \
-Be precise and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
-Do not answer anything else. \
-"
-
-summary_prompt_tweet_hateful = "\
-I am doing a classification task. \
-Given a review, I need to figure out whether this review is semantically hateful. \
-Here I will give you several examples. \
-Please help me summarize the rules to classify these reviews, using the format of \"if..., then...\". \
-Be precise and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
 Do not answer anything else. \
 "
 
@@ -211,15 +239,6 @@ def line_data_to_key_bbh_dyck_languages(line_data):
 
 def line_data_to_key_bbh_object_counting(line_data):
     return 'Question: ' + line_data['input']
-
-def line_data_to_key_tweet_offensive(line_data):
-    return line_data['sentence']
-
-def line_data_to_key_tweet_irony(line_data):
-    return line_data['sentence']
-
-def line_data_to_key_tweet_hateful(line_data):
-    return line_data['sentence']
 
 def line_data_to_key_dbpedia(line_data):
     return 'Title: \"' + line_data['title'] + '\"\nContent: \"' + line_data['content'] + '\"'
@@ -282,39 +301,6 @@ def check_true_or_false_bbh_object_counting(answer, line_data):
     if gt_answer not in answer and str_number not in answer: return False
 
     return True
-
-def check_true_or_false_tweet_offensive(answer, line_data):
-    
-    pred = answer.lower()
-    if 'offensive' in pred:
-        if 'not' in pred: label = 0
-        else: label = 1
-    else: label = -1
-
-    if int(label) == int(line_data['label']): return True
-    else: return False
-
-def check_true_or_false_tweet_irony(answer, line_data):
-    
-    pred = answer.lower()
-    if 'irony' in pred:
-        if 'not' in pred: label = 0
-        else: label = 1
-    else: label = -1
-
-    if int(label) == int(line_data['label']): return True
-    else: return False
-
-def check_true_or_false_tweet_hateful(answer, line_data):
-    
-    pred = answer.lower()
-    if 'hateful' in pred:
-        if 'not' in pred: label = 0
-        else: label = 1
-    else: label = -1
-
-    if int(label) == int(line_data['label']): return True
-    else: return False
 
 def check_true_or_false_dbpedia(answer, line_data):
     
