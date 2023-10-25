@@ -26,3 +26,16 @@ def load_data_tweet(path, task, split='test'):
         data.append({'sentence': sent, 'label': idx})
     
     return data
+
+def load_data_bbh(path, task):
+
+    task = task.replace('bbh-', '')
+    file_name = {
+        'dyck': 'dyck_languages.json'
+    }
+    
+    data = []
+    with open(path + file_name[task], 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    
+    return data['examples']

@@ -14,7 +14,7 @@ from rank_bm25 import BM25Okapi
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=-1, help='random seed, -1 for the default order')
-    parser.add_argument("--task", type=str, default="bbq-Age", help='task, bbq-Age/.. or tweet-irony/offensive')
+    parser.add_argument("--task", type=str, default="bbq-Age", help='task, bbq-Age/.. or tweet-irony/offensive or bbh-dyck')
     parser.add_argument("--data_dir", type=str, default="./data/BIG-bench/bigbench/benchmark_tasks/bbq_lite/resources/",)
     parser.add_argument("--log_path", type=str, default="./logs/log.txt")
     parser.add_argument("--rule_path", type=str, default="./rules/rule-book.json")
@@ -84,6 +84,23 @@ def reasoning_rules_tweet(messages, tokens, logger, line_data, task=None):
     messages, _, tokens = post_message(messages, tokens, logger)
 
     messages.append({'role': 'user', 'content': 'Be more precise and concise.'})
+    messages, _, tokens = post_message(messages, tokens, logger)
+    
+    messages.append({'role': 'user', 'content': 'Please rewrite these reasons into rules for making judgments, using the format of "if..., then...". Give it in sections. Each is an independent rule. Directly give the content of the rule. Do not answer anything else:'})
+    messages, response, tokens = post_message(messages, tokens, logger)
+
+    return messages, response, tokens
+
+def reasoning_rules_bbh(messages, tokens, logger, line_data, task=None):
+
+    gt_answer = line_data['target']
+    messages.append({'role': 'user', 'content': f'You are wrong. This correct answer is \"{gt_answer}\".'})
+    messages, _, tokens = post_message(messages, tokens, logger)
+    
+    messages.append({'role': 'user', 'content': f'Please give me the reasons for \"{gt_answer}\" as the correct answer, instead of your previous answer. List by points.'})
+    messages, _, tokens = post_message(messages, tokens, logger)
+
+    messages.append({'role': 'user', 'content': 'Be more general and concise.'})
     messages, _, tokens = post_message(messages, tokens, logger)
     
     messages.append({'role': 'user', 'content': 'Please rewrite these reasons into rules for making judgments, using the format of "if..., then...". Give it in sections. Each is an independent rule. Directly give the content of the rule. Do not answer anything else:'})

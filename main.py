@@ -42,6 +42,16 @@ elif 'tweet' in args.task:
     from settings import convert_prompt_tweet as convert_prompt
     from settings import construct_summary_prompt_tweet as construct_summary_prompt
     from utils import reasoning_rules_tweet as reasoning_rules
+elif 'bbh' in args.task:
+    from dataloader import load_data_bbh as load_data
+    from settings import task_descrip_prompt_bbh as task_descrip_prompt
+    from settings import summary_prompt_bbh
+    summary_prompt = summary_prompt_tweet[args.task]
+    from settings import line_data_to_key_bbh as line_data_to_key
+    from settings import check_true_or_false_bbh as check_true_or_false
+    from settings import convert_prompt_bbh as convert_prompt
+    from settings import construct_summary_prompt_bbh as construct_summary_prompt
+    from utils import reasoning_rules_bbh as reasoning_rules
 else:
     print('Not Implemented Yet')
     raise AttributeError
@@ -79,7 +89,6 @@ if __name__ == '__main__':
         count += 1
         logger.info(messages[0]['role'] + ' : ' + messages[0]['content'])
         logger.info(messages[1]['role'] + ' : ' + messages[1]['content'])
-        logger.info(f'Label: ' + str(line_data['label'] + 1))
         logger.info(f'Faults: {faults}.\t' + str(len(faults)) + f' faults from {count} samples')
         logger.info('==='*20)
 

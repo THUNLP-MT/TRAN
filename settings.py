@@ -106,9 +106,6 @@ task_descrip_prompt_tweet = {
     'tweet-irony': task_descrip_prompt_tweet_irony
 }
 
-def line_data_to_key_tweet(line_data):
-    return line_data['sentence']
-
 summary_prompt_tweet_offensive = "\
 I am doing a classification task. \
 Given a review, I need to figure out whether this review is semantically offensive. \
@@ -131,6 +128,9 @@ summary_prompt_tweet = {
     'tweet-offensive': summary_prompt_tweet_offensive,
     'tweet-irony': summary_prompt_tweet_irony
 }
+
+def line_data_to_key_tweet(line_data):
+    return line_data['sentence']
 
 def check_true_or_false_tweet(answer, line_data, task=None):
     
@@ -162,14 +162,7 @@ def construct_summary_prompt_tweet(line_datas, summary_prompt, task):
 
     return prompt + 'Rules: '
 
-summary_prompt_bbh_word_sorting = "\
-I am doing a word sorting task. \
-Given a list of words, I need to sort them lexicographically. \
-Here I will give you several examples. \
-Please help me summarize the rules to sort the words, using the format of \"if..., then...\". \
-Be general and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
-Do not answer anything else. \
-"
+task_descrip_prompt_bbh = ''
 
 summary_prompt_bbh_dyck_languages = "\
 I am doing a sequence completion task. \
@@ -180,6 +173,17 @@ Be general and concise. Give it in sections. Each is an independent rule. Direct
 Do not answer anything else. \
 "
 
+# Not Sure
+summary_prompt_bbh_word_sorting = "\
+I am doing a word sorting task. \
+Given a list of words, I need to sort them lexicographically. \
+Here I will give you several examples. \
+Please help me summarize the rules to sort the words, using the format of \"if..., then...\". \
+Be general and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
+Do not answer anything else. \
+"
+
+# Not Implemented
 summary_prompt_bbh_object_counting = "\
 I am doing an object counting task. \
 Given a list of objects, I need to count the number. \
@@ -189,131 +193,73 @@ Be general and concise. Give it in sections. Each is an independent rule. Direct
 Do not answer anything else. \
 "
 
-task_descrip_prompt_dbpedia = "\
-Help me perform a text classification task. \
-I will give you a pair of title and content. \
-Classify the text into one of the following 14 categories of \
-\"Company\", \"Educational Institution\", \"Artist\", \
-\"Athlete\", \"Office Holder\", \"Mean Of Transportation\", \
-\"Building\", \"Natural Place\", \"Village\", \"Animal\", \
-\"Plant\", \"Album\", \"Film\", \"Written Work\". \
-You are only allowed to answer one category from these 14 categories. \
-"
+summary_prompt_bbh = {
+    'bbh-dyck': summary_prompt_bbh_dyck_languages,
+    'bbh-word': summary_prompt_bbh_word_sorting,
+}
 
-summary_prompt_dbpedia = "\
-I am doing a text classification task. \
-Given a pair of title and content, I need to classify it into \
-one of the following 14 categories: \
-\"Company\", \"Educational Institution\", \"Artist\", \
-\"Athlete\", \"Office Holder\", \"Mean Of Transportation\", \
-\"Building\", \"Natural Place\", \"Village\", \"Animal\", \
-\"Plant\", \"Album\", \"Film\", \"Written Work\". \
-Here I will give you several examples. \
-Please help me summarize the rules to classify the given text, using the format of \"if..., then...\". \
-Be general and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
-Do not answer anything else. \
-"
+def line_data_to_key_bbh(line_data):
+    return 'Question: ' + line_data['input'] 
 
-task_descrip_prompt_agnews = "\
-Please help me perform a news classification task. \
-I will give you a news title and the corresponding description. \
-You should classify the news into the categories of \"World\", \"Sports\", \"Business\", and \"Technology\". \
-You are only allowed to give me a word, selecting from these four categories.\
-"
+def check_true_or_false_bbh(answer, line_data, task=None):
 
-summary_prompt_agnews = "\
-I am doing a text classification task. \
-Given a news title and the corresponding description, I need to classify it into \
-one of the categories of \"World\", \"Sports\", \"Business\", and \"Technology\". \
-Here I will give you several examples. \
-Please help me summarize the rules to classify the given news, using the format of \"if..., then...\". \
-Be general and concise. Give it in sections. Each is an independent rule. Directly give the content of the rule. \
-Do not answer anything else. \
-"
-
-def line_data_to_key_bbh_word_sorting(line_data):
-    return line_data['target']
-
-def line_data_to_key_bbh_dyck_languages(line_data):
-    return 'Question: ' + line_data['input']
-
-def line_data_to_key_bbh_object_counting(line_data):
-    return 'Question: ' + line_data['input']
-
-def line_data_to_key_dbpedia(line_data):
-    return 'Title: \"' + line_data['title'] + '\"\nContent: \"' + line_data['content'] + '\"'
-
-def line_data_to_key_agnews(line_data):
-    return 'News: \"' + line_data['title'] + '\"\nDescription: \"' + line_data['description'] + '\"'
-
-def check_true_or_false_bbh_word_sorting(answer, line_data):
+    if 'dyck' in task:
     
-    gt_answer = line_data['target']
-    for i in range(1,10):
-        answer = answer.replace(str(i), '')
-        gt_answer = gt_answer.replace(str(i), '')
-    answer = answer.replace('.', '').split(':')[-1].strip()
-    answer = answer.replace(',', ' ').strip()
+        gt_answer = line_data['target']
+        for i in range(1,10):
+            answer = answer.replace(str(i), '')
+            gt_answer = gt_answer.replace(str(i), '')
+        answer = answer.replace('.', '').split(':')[-1].strip()
+        answer = answer.replace(',', ' ').strip()
 
-    gt_answer_words = gt_answer.split()
-    answer_words = answer.split()
+        gt_answer_words = gt_answer.split()
+        answer_words = answer.split()
+        
+        if len(gt_answer_words) != len(answer_words): return False
+
+        for i in range(len(gt_answer_words)):
+            gt_word = gt_answer_words[i].lower()
+            word = answer_words[i].lower()
+            if gt_word not in word: return False
+
+        return True
     
-    if len(gt_answer_words) != len(answer_words): return False
+    elif 'word' in task:
+        
+        # Not Sure
+        gt_answer = line_data['target']
+        for i in range(1,10):
+            answer = answer.replace(str(i), '')
+            gt_answer = gt_answer.replace(str(i), '')
+        answer = answer.replace('.', '').split(':')[-1].strip()
+        answer = answer.replace(',', ' ').strip()
 
-    for i in range(len(gt_answer_words)):
-        gt_word = gt_answer_words[i].lower()
-        word = answer_words[i].lower()
-        if gt_word not in word: return False
+        gt_answer_words = gt_answer.split()
+        answer_words = answer.split()
+        
+        if len(gt_answer_words) != len(answer_words): return False
 
-    return True
+        for i in range(len(gt_answer_words)):
+            gt_word = gt_answer_words[i].lower()
+            word = answer_words[i].lower()
+            if gt_word not in word: return False
 
-def check_true_or_false_bbh_dyck_languages(answer, line_data):
+        return True
     
-    answer = answer.strip().split('\n')[-1]
+    else:
+        print('Not Implemented Yet')
+        raise AttributeError
 
-    gt_answer = line_data['target']
-    squeeze_gt_answer = gt_answer.replace(' ', '')
-    squeeze_answer = answer.replace(' ', '').replace(' ', '').replace(' ', '')
-    if squeeze_gt_answer not in squeeze_answer: return False
+def convert_prompt_bbh(line_data, task_prompt):
 
-    pre_sent = line_data['input'].split('Input: ')[-1].strip()
-    squeeze_pre_sent = pre_sent.replace(' ', '')
-    squeeze_answer = squeeze_answer.replace(squeeze_pre_sent, '').strip()
+    prompt = 'Question: ' + line_data['input'] + '\nAnswer: '
 
-    init_len = len(squeeze_answer)
-    squeeze_answer = squeeze_answer.replace(squeeze_gt_answer, '')
-    clean_len = len(squeeze_answer)
+    return prompt
 
-    if init_len - clean_len != len(squeeze_gt_answer): return False
-    for token in ['[', ']', '<', '>', '{', '}']:
-        if token in squeeze_answer: return False
+def construct_summary_prompt_bbh(line_datas, summary_prompt, task):
     
-    return True
-
-def check_true_or_false_bbh_object_counting(answer, line_data):
+    prompt = summary_prompt + '\n\nExamples:\n\n'
+    for line_data in line_datas:
+        prompt += 'Question: ' + line_data['input'] + '\nAnswer: ' + line_data['target'] + '\n\n'
     
-    gt_answer = str(line_data['target'])
-    answer = answer.lower()
-    
-    numbers = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty']
-    str_number = numbers[int(line_data['target'])]
-
-    if gt_answer not in answer and str_number not in answer: return False
-
-    return True
-
-def check_true_or_false_dbpedia(answer, line_data):
-    
-    pred = answer.lower()
-    label = line_data['label'].lower()
-
-    if label not in pred: return False
-    else: return True
-
-def check_true_or_false_agnews(answer, line_data):
-    
-    pred = answer.lower()
-    label = line_data['label'].lower()
-
-    if label not in pred: return False
-    else: return True
+    return prompt + 'Rules: '
